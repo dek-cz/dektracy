@@ -1,0 +1,25 @@
+{
+    "name": "dek-cz/dektracy",
+    "type": "library",
+    "require": {
+        "php": ">=7.2",
+        "ext-sqlsrv": "*",
+        "nette/di": "^3.0",
+        "latte/latte": ">=2.4",
+        "tracy/tracy": ">=2.6"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^7.0",
+        "dek-apps/mssql-sqlsrv":">=3.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "DekApps\\DekTracy\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    }
+}

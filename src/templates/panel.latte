@@ -1,0 +1,183 @@
+<style>
+    #tracy-debug .command,
+    #tracy-debug .datatype{
+        color:blue;
+    }
+
+    #tracy-debug .string{
+        color:red;
+    }
+
+    #tracy-debug .null{
+        color:grey;
+    }
+
+    #tracy-debug .coment{
+        color:green;
+    }
+
+    #tracy-debug table tr td:first-child{
+        min-width:49px;
+    }
+
+    #tracy-debug table tr td:nth-child(2) div{
+        max-width:540px;
+        overflow-x: auto;
+        margin-bottom:10px;
+    }
+
+    #tracy-debug table tr td:last-child{
+        min-width:60px;
+    }
+</style>
+
+<h1>Queries: {$this->getParameters()['count']}, time: {$this->getParameters()['time']} ms</h1>
+
+<div class="nette-inner tracy-inner">
+    <table>
+        <tr>
+            <th>Time ms</th>
+            <th>SQL Query</th>
+            <th>Result</th></tr>
+        </tr>
+        {foreach $this->getParameters()['connections'] as $index => $conn}
+            <tr>
+                <td n:attr="rowspan => 1 + ($conn['OUT'] ? 1 : 0) + (array_key_exists('ERROR', $conn) ? 1 : 0)">{$conn['TIME']}</td>
+                <td style="background-color:white">
+                    <div>
+
+
+<pre class="dump" id="query-{$index}">
+
+{foreach $conn['OUT'] as $out}
+declare @{$out['var_name']} {if $out['var_type'] === SQLSRV_SQLTYPE_INT}int{/if}{if $out['var_type'] === SQLSRV_SQLTYPE_VARCHAR}varchar(max){/if} 
+{/foreach}
+
+<span class="command">USE</span> [{$conn['DB']}]
+<span class="command">EXEC</span>{$conn['NAME']}
+
+{foreach $conn['IN'] as $in}
+{if $in['type'] !== SQLSRV_PARAM_OUT}
+{$in['param_name']} = <span class="{strtolower($in['php_type'])}">{$in['var']}{($iterator->isLast() === FALSE) ? ','}</span>
+{else}
+{$in['param_name']} = @{$in['var_name']} output{($iterator->isLast() === FALSE) ? ','}
+{/if}
+{/foreach}
+{foreach $conn['OUT'] as $out}{($iterator->isFirst())? 'select'} @{$out['var_name']}{($iterator->isLast() === FALSE) ? ','}{/foreach}
+</pre>
+
+                        <pre>
+
+                            {if array_key_exists('DEPRECATED', $conn)}
+<span class="coment" n:foreach="$conn['DEPRECATED'] as $dep">/* DEPRECATED {$param_name}: {$dep} */</span>
+                            {/if}
+                        </pre>
+
+                    </div>
+                    <a href="#" onclick="copyTextToClipboard(getQuery({$index}));
+                        return false;">Zkopírovat query do schránky</a><br>
+                </td>
+                {if false}
+                <td n:attr="rowspan => 1 + ($conn['OUT'] ? 1 : 0) + (array_key_exists('ERROR', $conn) ? 1 : 0)">
+                    {$conn['RESULT']} {is_int($conn['RESULT']) ? ' row(s)'}<br>
+                </td>
+                {/if}
+                {if $conn['OUT']}
+                </tr>
+                <tr>
+                    <td style="background-color:#fff">
+                        <a href="#" onclick="toggleOutputs({$index});return false;">OUTPUTS</a>
+                        <pre id="outputs-{$index}" style="display:none;"><span class="coment"></span>{foreach $conn['OUT'] as $key => $out}{$key}: <em>{(gettype($out['value']))}</em> {$out['value']}</br>{/foreach}</pre>
+                    </td>
+                </tr>
+            {else}
+                
+            {/if}
+
+            {if array_key_exists('ERROR', $conn)}
+                </tr>
+                <tr>
+                    <td style="background-color:#f2dede;"><b>{$conn['ERROR']}</b></td>
+                </tr>
+            {else}
+                </tr>
+            {/if}
+
+        {/foreach}
+    </table>
+</div>
+
+<script>
+    function toggleOutputs(index) {
+        var outputs = document.getElementById("outputs-" + index);
+        if (outputs.style.display !== 'none') {
+            outputs.style.display = 'none';
+        } else {
+            outputs.style.display = 'block';
+        }
+    }
+
+    function copyTextToClipboard(text) {
+        var textArea = document.createElement("textarea");
+
+        //
+        // *** This styling is an extra step which is likely not required. ***
+        //
+        // Why is it here? To ensure:
+        // 1. the element is able to have focus and selection.
+        // 2. if element was to flash render it has minimal visual impact.
+        // 3. less flakyness with selection and copying which **might** occur if
+        //    the textarea element is not visible.
+        //
+        // The likelihood is the element won't even render, not even a flash,
+        // so some of these are just precautions. However in IE the element
+        // is visible whilst the popup box asking the user for permission for
+        // the web page to copy to the clipboard.
+        //
+
+        // Place in top-left corner of screen regardless of scroll position.
+        textArea.style.position = 'fixed';
+        textArea.style.top = 0;
+        textArea.style.left = 0;
+
+        // Ensure it has a small width and height. Setting to 1px / 1em
+        // doesn't work as this gives a negative w/h on some browsers.
+        textArea.style.width = '2em';
+        textArea.style.height = '2em';
+
+        // We don't need padding, reducing the size if it does flash render.
+        textArea.style.padding = 0;
+
+        // Clean up any borders.
+        textArea.style.border = 'none';
+        textArea.style.outline = 'none';
+        textArea.style.boxShadow = 'none';
+
+        // Avoid flash of white box if rendered for any reason.
+        textArea.style.background = 'transparent';
+
+
+        textArea.value = text;
+
+        document.body.appendChild(textArea);
+
+        textArea.select();
+
+        try {
+            var successful = document.execCommand('copy');
+            var msg = successful ? 'successful' : 'unsuccessful';
+            console.log('Copying text command was ' + msg);
+        } catch (err) {
+            console.log('Oops, unable to copy');
+        }
+
+        document.body.removeChild(textArea);
+    }
+
+
+    function getQuery(queryIndex) {
+        var html = document.querySelector('#tracy-debug #query-' + queryIndex).innerHTML;
+        return html.replace(/<[^>]*>/g, "");
+    }
+
+</script>
